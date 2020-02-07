@@ -7,6 +7,6 @@ namespace HbfKickertoolIntegration.Api.Models
 {
     public class NewTournament
     {
-        public List<Team> Teams { get; set; }
+        public List<TurnamentTeam> Teams { get; set; }
     }
 }

@@ -46,6 +46,7 @@ namespace HbfKickertoolIntegration.Api.Controllers
         }
 
 
+
         // POST: api/KickerTournament
         [HttpPost]
         [Route("GenerateNewTournament")]
