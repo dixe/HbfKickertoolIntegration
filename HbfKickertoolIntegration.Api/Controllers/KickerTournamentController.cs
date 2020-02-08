@@ -66,7 +66,7 @@ namespace HbfKickertoolIntegration.Api.Controllers
                 return "{ \"tournamentfinished\" : false \"}";
             }
 
-            var newTour = service.CreateNew(newT.Teams.Select(x => (x.Player1, x.Player2)).ToList());
+            var newTour = service.CreateNew(newT.Teams.Select(x => (x.Player1Name, x.Player2Name)).ToList(), newT.Groups, newT.Tables);
             service.SaveTournementAsCurrent(newTour);
             KickerToolManagement.EnsureKickertoolRunning();
 

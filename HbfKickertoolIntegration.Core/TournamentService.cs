@@ -14,7 +14,7 @@ namespace HbfKickertoolIntegration.Core
 			repo = new TournamentRepository();
 		}
 
-		public Tournament CreateNew(List<(string p1, string p2)> teams)
+		public Tournament CreateNew(List<(string p1, string p2)> teams, int groups, List<int> tables)
 		{
 
 			var t = BlankTournament();
@@ -22,8 +22,10 @@ namespace HbfKickertoolIntegration.Core
 			t.name = "Tournament - " + DateTime.Now.ToShortDateString();
 			t.ko = null;
 			t.numRounds = 0;
-			t.groups = null;
+			t.groups = null; // TODO create groups
 			t.plays = null;
+			//t.options =   //TODO set tables
+			
 
 			foreach (var team in teams)
 				t.teams = teams.Select(x =>

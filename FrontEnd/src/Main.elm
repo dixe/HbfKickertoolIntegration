@@ -1,10 +1,12 @@
 module Main exposing (..)
 
+
 import Browser
 import Html exposing (..)
 import Http
-import Json.Decode as Decode exposing (Decoder, field, map2, int, string, decodeString, errorToString, list) -- maybe not in type module
-import Json.Decode.Pipeline exposing (required, optional, hardcoded)
+--import Json.Decode as Decode exposing (Decoder, field, map2, map4, int, string, decodeString, errorToString, list) -- maybe not in type module
+import Json.Encode as Encode
+import Json.Decode as Decode
 import List
 import Types exposing (..)
 import Layout exposing (viewMain)
@@ -14,7 +16,7 @@ main =
     Browser.element { init = init, update = update, subscriptions =  subscriptions, view = view }
 
 init : () -> (Model, Cmd Msg)
-init _ = (Turnering {teams = [],  number1 = "", number2 = "", name1 = "", name2 = "", playerSuggestions = []}, Cmd.none)
+init _ = (Turnering emptyTournament, Cmd.none)
 
 
 -- UPDATE
@@ -24,11 +26,16 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         Load -> (Loading, Cmd.none) -- cmd http request load
-        LoadPlayer1Suggestions name -> (updatePlayer1Name model name, loadPlayer name GotPlayer1Suggestions) -- cmd http request load
+        LoadPlayer1Suggestions name -> (updatePlayer1Name model name, loadPlayer name GotPlayer1Suggestions)
+        LoadPlayer2Suggestions name -> (updatePlayer2Name model name, loadPlayer name GotPlayer2Suggestions)
         AddTeam number1 number2 -> (model, addTeamGet number1 number2)
         GotTeam result -> fromResult result teamDecoder (addTeam model)
         GotPlayer1Suggestions result -> fromResult result playerSuggestionsDecoder (updatePlayerSuggestions model) -- cmd http request load
-
+        GotPlayer2Suggestions result -> fromResult result playerSuggestionsDecoder (updatePlayerSuggestions model) -- cmd http request load
+        StartTournament -> (model, case model of
+                                      Turnering t -> startTournament t TournamentStarted
+                                      _ -> Cmd.none)
+        TournamentStarted _ -> (model, Cmd.none)
 
 
 updatePlayer1Name : Model -> String -> Model
@@ -38,23 +45,30 @@ updatePlayer1Name model name =
         _ -> model
 
 
+updatePlayer2Name : Model -> String -> Model
+updatePlayer2Name model name =
+    case model of
+        Turnering t -> Turnering {t | name2 = name}
+        _ -> model
+
+
 updatePlayerSuggestions : Model -> List String -> Model
 updatePlayerSuggestions model names =
     case model of
         Turnering t -> Turnering {t | playerSuggestions = names}
         _ -> model
 
-addTeam : Model -> String -> Model
+addTeam : Model -> Team -> Model
 addTeam model team =
     case model of
-        Turnering t -> Turnering {t | teams = t.teams ++ [team]}
+        Turnering t -> Turnering {t | teams = t.teams ++ [team], name1 = "", name2 = ""}
         _ -> model
 
-fromResult : (Result Http.Error String) -> Decoder a -> (a -> Model) -> (Model, Cmd Msg)
+fromResult : (Result Http.Error String) -> Decode.Decoder a -> (a -> Model) -> (Model, Cmd Msg)
 fromResult result decoder ret  =
     case result of
         Ok allText ->
-            case decodeString decoder allText of
+            case Decode.decodeString decoder allText of
                 Ok decoded ->
                     (ret decoded, Cmd.none)
                 Err r ->
@@ -91,7 +105,7 @@ addTeamGet number1 number2 =
 
 -- Get the names of the players from the phone numbers
 loadPlayer : String -> (Result Http.Error String -> Msg) -> Cmd Msg
-loadPlayer name msg=
+loadPlayer name msg =
     Http.get
         { url = String.join "" ["http://localhost:49979/api/Users/GetPlayerSuggestions?name="
                                , name
@@ -100,16 +114,73 @@ loadPlayer name msg=
         }
 
 
-teamDecoder : Decoder String
+startTournament : Tournament -> (Result Http.Error String -> Msg) -> Cmd Msg
+startTournament t msg =
+    Http.post
+        { url = "http://localhost:49979/api/KickerTournament/GenerateNewTournament"
+        , body = Http.jsonBody (encodeTournament t)
+        , expect = Http.expectString msg
+        }
+
+
+
+
+
+teamDecoder : Decode.Decoder Team
 teamDecoder =
-  field "data" (field "image_url" string)
+    Decode.map4 Team
+        (Decode.field "player1Name" Decode.string)
+        (Decode.field "player2Name" Decode.string)
+        (Decode.field "player1Number" Decode.string)
+        (Decode.field "player2Number" Decode.string)
 
 
 
-playerSuggestionDecoder : Decoder String
+
+playerSuggestionDecoder : Decode.Decoder String
 playerSuggestionDecoder =
-    field "name" string
+    Decode.field "name" Decode.string
 
-playerSuggestionsDecoder : Decoder (List String)
+playerSuggestionsDecoder : Decode.Decoder (List String)
 playerSuggestionsDecoder =
-  field "suggestions" ( list playerSuggestionDecoder)
+  Decode.field "suggestions" ( Decode.list playerSuggestionDecoder)
+
+
+-- GENERATED JSON DECODERS
+
+
+decodeTeam =
+    Decode.map4
+        Team
+            ( Decode.field "player1Name" Decode.string )
+            ( Decode.field "player2Name" Decode.string )
+            ( Decode.field "player1Number" Decode.string )
+            ( Decode.field "player2Number" Decode.string )
+
+decodeTournament =
+    Decode.map6
+        Tournament
+            ( Decode.field "teams" (Decode.list decodeTeam) )
+            ( Decode.field "number1" Decode.string )
+            ( Decode.field "number2" Decode.string )
+            ( Decode.field "name1" Decode.string )
+            ( Decode.field "name2" Decode.string )
+            ( Decode.field "playerSuggestions" (Decode.list Decode.string) )
+
+encodeTeam a =
+    Encode.object
+        [ ("player1Name", Encode.string a.player1Name)
+        , ("player2Name", Encode.string a.player2Name)
+        , ("player1Number", Encode.string a.player1Number)
+        , ("player2Number", Encode.string a.player2Number)
+        ]
+
+encodeTournament a =
+    Encode.object
+        [ ("teams", Encode.list encodeTeam a.teams)
+        , ("number1", Encode.string a.number1)
+        , ("number2", Encode.string a.number2)
+        , ("name1", Encode.string a.name1)
+        , ("name2", Encode.string a.name2)
+        , ("playerSuggestions", Encode.list Encode.string a.playerSuggestions)
+        ]

@@ -40,9 +40,9 @@ namespace HbfKickertoolIntegration.Api.Controllers
         {
             return new Team
             {
-                Player1Name = "Name " + number1,
+                Player1Name = number1,
                 Player1Number = number1,
-                Player2Name = "Name " + number2,
+                Player2Name = number2,
                 Player2Number = number2,
 
             };

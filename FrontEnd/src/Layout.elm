@@ -24,9 +24,9 @@ viewMain model =
             , case model of
                   Loading -> loadingView
                   KickerToolRunning -> kickerToolRunningView
-                  Turnering t -> turnamentView t
+                  Turnering t -> tournamentView t
                   Failure prob ->  case prob of
-                                       LoadingError -> text "loading error"
+                                       LoadingError -> text "loading error" -- ignore?
                                        ParsingError s -> text s
 
             ]
@@ -34,15 +34,18 @@ viewMain model =
 
 -- HELPERS
 
-turnamentView : Turnament ->  Element Msg
-turnamentView t  =
-    -- if turnament is not finished handle it
+tournamentView : Tournament ->  Element Msg
+tournamentView t  =
 
-    -- turnament is ready to be set up
+     -- if tournament is not finished handle it
 
-    -- Add User Button
+     -- tournament is ready to be set up
+    column
+    [centerX]
+    [
+     -- Add User Button
 
-    -- add team
+     -- add team
     column
     [centerX]
     [
@@ -56,7 +59,7 @@ turnamentView t  =
     , Input.text
         [ centerX]
         { label = Input.labelLeft [] (text "Spiller 2")
-        , onChange = \name -> LoadPlayer1Suggestions name
+        , onChange = \name -> LoadPlayer2Suggestions name
         , placeholder = Nothing -- Just (Input.placeholder [] (text placeholder)) -- only is text is empty
         , text = t.name2 -- user number not name
         }
@@ -65,25 +68,52 @@ turnamentView t  =
       then
           Input.button
               buttonLayout
-              { onPress = Just (AddTeam "s1" "s2")
+              { onPress = Just (AddTeam t.name1 t.name2)
               , label = text "Gem"
               }
       else
           Element.none
     ]
-
+    ,
     --
 
 
     -- List of teams
 
+    viewTeams t
+
+
+
     -- tables
     -- groups
     -- point
 
+    , Input.button
+         buttonLayout
+         { onPress = Just StartTournament
+         , label = text "Start tournering"
+         }
+    ]
 
 
 
+
+viewTeams : Tournament -> Element Msg
+viewTeams t =
+    column
+    [centerX]
+    (
+     [(text "Hold")] ++
+         (List.map viewTeam t.teams))
+
+viewTeam : Team -> Element Msg
+viewTeam t =
+    row
+    [centerX]
+    [ text t.player1Name
+    , text "-"
+    , text t.player2Name
+    ]
 
 kickerToolRunningView : Element Msg
 kickerToolRunningView =
