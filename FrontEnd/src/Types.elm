@@ -1,20 +1,27 @@
 module Types exposing (..)
 
 import Http
+import Select
 
 type Msg = Load
          | LoadPlayer1Suggestions String
-         | LoadPlayer2Suggestions String
+         | LoadPlayerSuggestions String Focused
          | AddTeam String String
          | GotTeam (Result Http.Error String)
          | GotPlayer1Suggestions (Result Http.Error String)
          | GotPlayer2Suggestions (Result Http.Error String)
          | StartTournament
          | TournamentStarted (Result Http.Error String)
+         | OnSelect (Maybe String)
+         | SelectMsg String (Select.Msg String)
 
-type Model = Loading | KickerToolRunning | Turnering Tournament | Failure Problem
+type alias Model = { selectState : Select.State, modelState : ModelState, focused : Focused }
+
+type ModelState = Loading | KickerToolRunning | Turnering Tournament | Failure Problem
 
 type Problem = LoadingError | ParsingError String
+
+type Focused = None | Player1 | Player2
 
 type alias Tournament = { teams : List Team
                         , number1 : String
@@ -45,3 +52,17 @@ emptyTournament =
     , groups = 1
     , tables = [1,2,3,4,5]
     }
+
+
+
+selectConfig : Select.Config Msg String
+selectConfig =
+    Select.newConfig
+        { onSelect = OnSelect
+        , toLabel = (\x -> x)
+        , filter = selectFilter
+        }
+
+
+selectFilter : String -> List item -> Maybe (List item)
+selectFilter s l = Just l

@@ -21,16 +21,18 @@ namespace HbfKickertoolIntegration.Api.Controllers
         [Route("GetPlayerSuggestions")]
         public PlayerSuggestions GeGetPlayerSuggestionstPlayer(string name)
         {
+            if(name == null)
+            {
+                return new PlayerSuggestions();
+            }
             return new PlayerSuggestions
             {
-                Suggestions = new List<PlayerSuggestion>
-                {
+                Suggestions = name.Select(x =>
                     new PlayerSuggestion
                     {
-                        Name = name + "Sug",
+                        Name = x.ToString() + "_sug",
                         Number = "4432133SUG"
-                    }
-                }
+                    }).ToList()        
             };
         }
 

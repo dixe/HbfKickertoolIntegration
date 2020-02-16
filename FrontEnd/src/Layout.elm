@@ -1,7 +1,8 @@
 module Layout exposing (viewMain)
 
 import Types exposing (..)
-import Html exposing (Html)
+import Html as Html exposing (Html, div,p, label, h3, map)
+import Html.Attributes exposing (class, href)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -9,6 +10,8 @@ import Element.Events exposing (..)
 import Element.Font as Font
 import Element.Input as Input
 import Element.Region as Region
+import Select
+
 
 
 viewMain : Model -> Html Msg
@@ -21,21 +24,20 @@ viewMain model =
             [
              header
             , spacerLine
-            , case model of
+            , case model.modelState of
                   Loading -> loadingView
                   KickerToolRunning -> kickerToolRunningView
-                  Turnering t -> tournamentView t
+                  Turnering t -> tournamentView t model
                   Failure prob ->  case prob of
                                        LoadingError -> text "loading error" -- ignore?
                                        ParsingError s -> text s
-
             ]
 
 
 -- HELPERS
 
-tournamentView : Tournament ->  Element Msg
-tournamentView t  =
+tournamentView : Tournament -> Model ->  Element Msg
+tournamentView t model =
 
      -- if tournament is not finished handle it
 
@@ -48,23 +50,21 @@ tournamentView t  =
      -- add team
     column
     [centerX]
-    [
-     Input.text
-         [ centerX]
-         { label = Input.labelLeft [] (text "Spiller 1")
-         , onChange = \name -> LoadPlayer1Suggestions name
-         , placeholder = Nothing -- Just (Input.placeholder [] (text placeholder)) -- only is text is empty
-         , text = t.name1 -- user number not name
-         }
+    [ Input.search
+           ([ centerX] ++ (if model.focused == Player1 then [below (viewListSuggestions t)] else []))
+           { label = Input.labelLeft [] (text "Spiller 1")
+           , onChange = \name -> LoadPlayer1Suggestions name
+           , placeholder = Nothing -- Just (Input.placeholder [] (text placeholder)) -- only is text is empty
+           , text = t.name1 -- user number not name
+           }
     , Input.text
-        [ centerX]
+        ([ centerX] ++ (if model.focused == Player2 then [below (viewListSuggestions t)] else []))
         { label = Input.labelLeft [] (text "Spiller 2")
         , onChange = \name -> LoadPlayer2Suggestions name
         , placeholder = Nothing -- Just (Input.placeholder [] (text placeholder)) -- only is text is empty
         , text = t.name2 -- user number not name
         }
-
-    , if True -- TODO only show when both players has a phone number in them
+    , if t.name1 /= "" && t.name2 /= "" -- TODO only show when both players has a phone number in them
       then
           Input.button
               buttonLayout
@@ -74,14 +74,16 @@ tournamentView t  =
       else
           Element.none
     ]
-    ,
+    --    , html (viewSelectPlayer t model)
+
+
     --
 
 
     -- List of teams
 
-    viewTeams t
-
+    , viewTeams t
+--    , column [] (List.map (\x -> text x) t.playerSuggestions)
 
 
     -- tables
@@ -95,8 +97,38 @@ tournamentView t  =
          }
     ]
 
+-- TODO make these buttons that can set the input
+viewListSuggestions : Tournament -> Element Msg
+viewListSuggestions t =
+    column [Background.color white] (List.map (\x -> text x) t.playerSuggestions)
 
 
+
+viewSelectPlayer : Tournament -> Model -> Html Msg
+viewSelectPlayer  t model =
+    let
+        select = Select.view (Select.withClear False selectConfig)
+                 model.selectState
+                 t.playerSuggestions
+                 [t.name1]
+    in
+    Html.div [ class "bg-gray-300 p-2" ]
+        [Html.p [ class "mt-2" ]
+            [ Html.label [] [
+                    Element.layout []
+                         (Input.search
+                              [ centerX]
+                              { label = Input.labelLeft [] (text "Spiller 1")
+                              , onChange = \name -> LoadPlayer1Suggestions name
+                              , placeholder = Nothing -- Just (Input.placeholder [] (text placeholder)) -- only is text is empty
+                              , text = t.name1 -- user number not name
+                              })
+                  ]
+            ]
+        , Html.p []
+            [ (Html.map (SelectMsg t.name1) select)
+            ]
+        ]
 
 viewTeams : Tournament -> Element Msg
 viewTeams t =
@@ -170,6 +202,12 @@ buttonLayout = [ Background.color buttonColor
                , Border.rounded 3
                , Font.size 20
                ]
+
+
+
+
+
+
 
 
 buttonColor = darkGray

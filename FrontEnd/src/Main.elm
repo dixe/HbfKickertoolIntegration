@@ -10,14 +10,23 @@ import Json.Decode as Decode
 import List
 import Types exposing (..)
 import Layout exposing (viewMain)
+import Select
+
+
 
 -- MAIN
 main =
     Browser.element { init = init, update = update, subscriptions =  subscriptions, view = view }
 
 init : () -> (Model, Cmd Msg)
-init _ = (Turnering emptyTournament, Cmd.none)
+init _ = (initModel, Cmd.none)
 
+
+initModel : Model
+initModel = { selectState = Select.newState "p1"
+            , modelState = Turnering emptyTournament
+            , focused = None
+            }
 
 -- UPDATE
 
@@ -25,46 +34,70 @@ init _ = (Turnering emptyTournament, Cmd.none)
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        Load -> (Loading, Cmd.none) -- cmd http request load
-        LoadPlayer1Suggestions name -> (updatePlayer1Name model name, loadPlayer name GotPlayer1Suggestions)
-        LoadPlayer2Suggestions name -> (updatePlayer2Name model name, loadPlayer name GotPlayer2Suggestions)
+        Load -> ({model | modelState = Loading}, Cmd.none) -- cmd http request load
+        LoadPlayer1Suggestions name -> (updateModelState {model | focused = Player1} updatePlayer1Name name, loadPlayer name GotPlayer1Suggestions)
+        LoadPlayer2Suggestions name -> (updateModelState {model | focused = Player2} updatePlayer2Name name, loadPlayer name GotPlayer2Suggestions)
         AddTeam number1 number2 -> (model, addTeamGet number1 number2)
-        GotTeam result -> fromResult result teamDecoder (addTeam model)
-        GotPlayer1Suggestions result -> fromResult result playerSuggestionsDecoder (updatePlayerSuggestions model) -- cmd http request load
-        GotPlayer2Suggestions result -> fromResult result playerSuggestionsDecoder (updatePlayerSuggestions model) -- cmd http request load
-        StartTournament -> (model, case model of
-                                      Turnering t -> startTournament t TournamentStarted
-                                      _ -> Cmd.none)
+        GotTeam result ->
+            let (state,cmd) = fromResult result teamDecoder (addTeam model.modelState)
+            in ({model | modelState = state}, cmd)
+        GotPlayer1Suggestions result -> let (state,cmd) = fromResult result playerSuggestionsDecoder (updatePlayerSuggestions model.modelState) -- cmd http request load
+                                        in ({model | modelState = state}, cmd)
+        GotPlayer2Suggestions result -> olet (state,cmd) = fromResult result playerSuggestionsDecoder (updatePlayerSuggestions model.modelState) -- cmd http request load
+                                        in ({model | modelState = state}, cmd)
+        StartTournament -> (model,
+                                case model.modelState of
+                                    Turnering t -> startTournament t TournamentStarted
+                                    _ -> Cmd.none)
         TournamentStarted _ -> (model, Cmd.none)
+        OnSelect maybeName ->
+            let
+                name = case maybeName of
+                           Just n -> n
+                           Nothing -> ""
+            in
+                (updateModelState model updatePlayer1Name name, Cmd.none)
+        SelectMsg name subMsg ->
+            let
+                (state, cmd) = (updatePlayer1Name model.modelState name, loadPlayer name GotPlayer1Suggestions)
+                (a, _) =
+                    Select.update selectConfig subMsg model.selectState
+            in
+                ( {model | selectState = a, modelState = state}, cmd)
 
 
-updatePlayer1Name : Model -> String -> Model
+updateModelState : Model -> (ModelState -> a -> ModelState) -> a -> Model
+updateModelState m f arg
+    = { m | modelState = f m.modelState arg}
+
+
+updatePlayer1Name : ModelState -> String -> ModelState
 updatePlayer1Name model name =
     case model of
         Turnering t -> Turnering {t | name1 = name}
         _ -> model
 
 
-updatePlayer2Name : Model -> String -> Model
+updatePlayer2Name : ModelState -> String -> ModelState
 updatePlayer2Name model name =
     case model of
         Turnering t -> Turnering {t | name2 = name}
         _ -> model
 
 
-updatePlayerSuggestions : Model -> List String -> Model
+updatePlayerSuggestions : ModelState -> List String -> ModelState
 updatePlayerSuggestions model names =
     case model of
         Turnering t -> Turnering {t | playerSuggestions = names}
         _ -> model
 
-addTeam : Model -> Team -> Model
+addTeam : ModelState -> Team -> ModelState
 addTeam model team =
     case model of
         Turnering t -> Turnering {t | teams = t.teams ++ [team], name1 = "", name2 = ""}
         _ -> model
 
-fromResult : (Result Http.Error String) -> Decode.Decoder a -> (a -> Model) -> (Model, Cmd Msg)
+fromResult : (Result Http.Error String) -> Decode.Decoder a -> (a -> ModelState) -> (ModelState, Cmd Msg)
 fromResult result decoder ret  =
     case result of
         Ok allText ->
