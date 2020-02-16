@@ -10,8 +10,6 @@ import Element.Events exposing (..)
 import Element.Font as Font
 import Element.Input as Input
 import Element.Region as Region
-import Select
-
 
 
 viewMain : Model -> Html Msg
@@ -51,16 +49,16 @@ tournamentView t model =
     column
     [centerX]
     [ Input.search
-           ([ centerX] ++ (if model.focused == Player1 then [below (viewListSuggestions t)] else []))
+           ([ centerX, onLoseFocus ClearSuggestions] ++ (if model.focused == Player1 then [below (viewListSuggestions t)] else []))
            { label = Input.labelLeft [] (text "Spiller 1")
-           , onChange = \name -> LoadPlayer1Suggestions name
+           , onChange = \name -> LoadPlayerSuggestions name Player1
            , placeholder = Nothing -- Just (Input.placeholder [] (text placeholder)) -- only is text is empty
            , text = t.name1 -- user number not name
            }
     , Input.text
-        ([ centerX] ++ (if model.focused == Player2 then [below (viewListSuggestions t)] else []))
+        ([ centerX, onLoseFocus ClearSuggestions] ++ (if model.focused == Player2 then [below (viewListSuggestions t)] else []))
         { label = Input.labelLeft [] (text "Spiller 2")
-        , onChange = \name -> LoadPlayer2Suggestions name
+        , onChange = \name -> LoadPlayerSuggestions name Player2
         , placeholder = Nothing -- Just (Input.placeholder [] (text placeholder)) -- only is text is empty
         , text = t.name2 -- user number not name
         }
@@ -74,9 +72,6 @@ tournamentView t model =
       else
           Element.none
     ]
-    --    , html (viewSelectPlayer t model)
-
-
     --
 
 
@@ -102,33 +97,6 @@ viewListSuggestions : Tournament -> Element Msg
 viewListSuggestions t =
     column [Background.color white] (List.map (\x -> text x) t.playerSuggestions)
 
-
-
-viewSelectPlayer : Tournament -> Model -> Html Msg
-viewSelectPlayer  t model =
-    let
-        select = Select.view (Select.withClear False selectConfig)
-                 model.selectState
-                 t.playerSuggestions
-                 [t.name1]
-    in
-    Html.div [ class "bg-gray-300 p-2" ]
-        [Html.p [ class "mt-2" ]
-            [ Html.label [] [
-                    Element.layout []
-                         (Input.search
-                              [ centerX]
-                              { label = Input.labelLeft [] (text "Spiller 1")
-                              , onChange = \name -> LoadPlayer1Suggestions name
-                              , placeholder = Nothing -- Just (Input.placeholder [] (text placeholder)) -- only is text is empty
-                              , text = t.name1 -- user number not name
-                              })
-                  ]
-            ]
-        , Html.p []
-            [ (Html.map (SelectMsg t.name1) select)
-            ]
-        ]
 
 viewTeams : Tournament -> Element Msg
 viewTeams t =
